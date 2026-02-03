@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Katalog Merchandise</title>
+  <title>Katalog Merchandise Aspro SDMA</title>
   <style>
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#f4f4f4;}
     header{
@@ -42,13 +42,13 @@
 
 <script>
   // ✅ UBAH sesuai jumlah file kamu (misal 23 halaman)
-  const TOTAL_PAGES = 23;
+  const TOTAL_PAGES = 28;
 
   function pad3(n){ return String(n).padStart(3,'0'); }
 
   const pages = [];
-  for (let i = 1; i <= 28; i++){
-    pages.push(`pages/page-${pad3(i)}.jpg`);
+  for (let i = 1; i <= TOTAL_PAGES; i++){
+    pages.push(`page/page-${pad3(i)}.jpg`);
   }
 
   const bookEl = document.getElementById('book');
