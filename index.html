@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Katalog Merchandise (2 Halaman)</title>
+  <style>
+    :root { --gap: 12px; }
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#f6f6f6;}
+    header{
+      position:sticky; top:0; z-index:10;
+      background:#fff; border-bottom:1px solid #e6e6e6;
+      padding:10px 12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    }
+    button{
+      padding:8px 10px; border:1px solid #ddd; background:#fff; border-radius:10px;
+      cursor:pointer;
+    }
+    button:disabled{opacity:.5; cursor:not-allowed;}
+    .meta{font-size:14px; color:#333;}
+    .wrap{padding:14px; max-width:1200px; margin:0 auto;}
+    .spread{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--gap);
+      align-items:start;
+    }
+    .page{
+      background:#fff;
+      border:1px solid #e5e5e5;
+      border-radius:14px;
+      box-shadow:0 2px 10px rgba(0,0,0,.06);
+      padding:10px;
+    }
+    canvas{width:100%; height:auto; display:block;}
+    .hint{font-size:13px;color:#666;margin-top:10px}
+    @media (max-width: 820px){
+      .spread{grid-template-columns: 1fr;} /* di HP otomatis 1 halaman biar kebaca */
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <button id="prev">◀ Prev</button>
+    <button id="next">Next ▶</button>
+    <span class="meta" id="status">Loading…</span>
+    <span class="meta" id="pages"></span>
+  </header>
+
+  <div class="wrap">
+    <div class="spread">
+      <div class="page"><canvas id="c1"></canvas></div>
+      <div class="page"><canvas id="c2"></canvas></div>
+    </div>
+    <div class="hint">Tips: di layar besar tampil 2 halaman. Di HP otomatis jadi 1 halaman supaya jelas.</div>
+  </div>
+
+  <!-- PDF.js (no ads). Kalau suatu saat link CDN berubah, tinggal ganti versi/URL-nya. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    const url = 'katalog.pdf';
+
+    // Worker untuk PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    const c1 = document.getElementById('c1');
+    const c2 = document.getElementById('c2');
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+    const statusEl = document.getElementById('status');
+    const pagesEl = document.getElementById('pages');
+
+    let pdfDoc = null;
+    let spreadIndex = 0; // 0 => halaman 1-2, 1 => 3-4, dst
+    let totalPages = 0;
+
+    function pageNumsForSpread(i){
+      const left = i*2 + 1;
+      const right = left + 1;
+      return [left, right];
+    }
+
+    async function renderPageToCanvas(pageNum, canvas){
+      const page = await pdfDoc.getPage(pageNum);
+
+      // hitung scale agar pas lebar kontainer
+      const containerWidth = canvas.parentElement.clientWidth - 20; // padding approx
+      const viewport0 = page.getViewport({ scale: 1 });
+      const scale = containerWidth / viewport0.width;
+      const viewport = page.getViewport({ scale });
+
+      const ctx = canvas.getContext('2d', { alpha: false });
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+
+      await page.render({ canvasContext: ctx, viewport }).promise;
+    }
+
+    async function renderSpread(){
+      const [pL, pR] = pageNumsForSpread(spreadIndex);
+
+      // tombol
+      prevBtn.disabled = (pL <= 1);
+      nextBtn.disabled = (pL > totalPages);
+
+      // status text
+      if (pL > totalPages){
+        statusEl.textContent = 'Selesai';
+        return;
+      }
+
+      const rightExists = pR <= totalPages;
+      statusEl.textContent = rightExists
+        ? `Halaman ${pL}–${pR}`
+        : `Halaman ${pL}`;
+      pagesEl.textContent = `(Total ${totalPages} halaman)`;
+
+      // render kiri
+      await renderPageToCanvas(pL, c1);
+
+      // render kanan (kalau ada), kalau tidak kosongkan
+      if (rightExists){
+        c2.style.display = '';
+        await renderPageToCanvas(pR, c2);
+      } else {
+        c2.style.display = 'none';
+      }
+    }
+
+    prevBtn.addEventListener('click', async () => {
+      if (spreadIndex > 0){
+        spreadIndex--;
+        await renderSpread();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+
+    nextBtn.addEventListener('click', async () => {
+      const [pL] = pageNumsForSpread(spreadIndex);
+      if (pL + 2 <= totalPages){
+        spreadIndex++;
+        await renderSpread();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+
+    (async function init(){
+      statusEl.textContent = 'Loading PDF…';
+      pdfDoc = await pdfjsLib.getDocument(url).promise;
+      totalPages = pdfDoc.numPages;
+      statusEl.textContent = 'Render…';
+      await renderSpread();
+    })();
+  </script>
+</body>
+</html>
